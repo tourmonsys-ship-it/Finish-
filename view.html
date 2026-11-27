@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>جدول المراقبات</title>
+<style>
+body{font-family:system-ui,Tahoma,sans-serif;margin:0;padding:16px;background:#f4f6fb;color:#10202e;line-height:1.6}
+h2{margin:0 0 8px}select{font:inherit;padding:10px;width:100%;box-sizing:border-box;margin:8px 0;border:1px solid #d3dae1;border-radius:10px}
+.c{overflow-x:auto}table{width:100%;border-collapse:collapse;background:#fff}td,th{border:1px solid #d3dae1;padding:6px 8px;font-size:14px;text-align:right}th{background:#e8edf3}
+.m{color:#5d6b78}
+</style>
+</head>
+<body>
+<h2>📋 جدول المراقبات</h2>
+<p class="m" id="st">جارٍ التحميل...</p>
+<select id="who" onchange="show()"><option value="">كل الجدول</option></select>
+<div class="c" id="out"></div>
+<script>
+const SHEET_URL="https://script.google.com/macros/s/AKfycbwxB9dQFADJzF7QiWVGejBsdEnOjfqg4tL3EJhVAV6AEidY9ROCsC7JxZqSba-3FyQw8g/exec";
+const VIEW_TOKEN="view2026";
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let rows=[];
+fetch(SHEET_URL+'?token='+encodeURIComponent(VIEW_TOKEN)).then(r=>r.json()).then(r=>{
+  if(r.error){document.getElementById('st').textContent='تعذر عرض الجدول.';return}
+  if(!r.schedule||!r.schedule.length){document.getElementById('st').textContent=r.note||'لا يوجد جدول معتمد حالياً.';return}
+  const names=new Set();
+  r.schedule.forEach(d=>{
+    d.assign.forEach(a=>{
+      a.staff.forEach(s=>names.add(s.name));
+      rows.push({date:d.exam.date,time:d.exam.period,hall:a.hallName,mgr:(a.managerTitle||'')+' '+a.managerName,who:a.staff.map(s=>s.name),list:a.staff.filter(s=>s.id!==a.managerId).map(s=>(s.title||'')+' '+s.name).join(' - ')});
+    });
+    ((r.reserves||{})[d.exam.id]||[]).forEach(s=>{names.add(s.name);rows.push({date:d.exam.date,time:d.exam.period,hall:'احتياط',mgr:'',who:[s.name],list:(s.title||'')+' '+s.name})});
+  });
+  const w=document.getElementById('who');
+  [...names].sort((a,b)=>a.localeCompare(b,'ar')).forEach(n=>w.add(new Option(n,n)));
+  document.getElementById('st').textContent='الجدول المعتمد';
+  show();
+}).catch(()=>{document.getElementById('st').textContent='تعذر الاتصال.'});
+function show(){
+  const n=document.getElementById('who').value,L=n?rows.filter(x=>x.who.includes(n)):rows;
+  document.getElementById('out').innerHTML='<table><tr><th>التاريخ</th><th>الوقت</th><th>القاعة</th><th>مدير القاعة</th><th>المراقبون</th></tr>'+L.map(x=>'<tr><td>'+esc(x.date)+'</td><td>'+esc(x.time)+'</td><td>'+esc(x.hall)+'</td><td>'+esc(x.mgr)+'</td><td>'+esc(x.list)+'</td></tr>').join('')+'</table>';
+}
+</script>
+</body>
+</html>
